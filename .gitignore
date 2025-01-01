@@ -1,0 +1,5 @@
+# Ignorar certificados .pem
+*.pem
+
+# Ignorar archivos .env
+.env
