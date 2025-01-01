@@ -9,6 +9,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const corsOrigin = process.env.CORS_ORIGIN || '*';
 
 // Middleware para analizar el cuerpo de las solicitudes JSON
 app.use(express.json());
@@ -18,7 +19,7 @@ app.use((req, res, next) => {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] ${req.method} ${req.url}`); // Imprimir la solicitud entrante
     cors({
-        origin: true, // Permite solicitudes de cualquier origen
+        origin: corsOrigin,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos permitidos
         credentials: true, // Habilita el envío de cookies
     })(req, res, next); // Llama al siguiente middleware
@@ -26,7 +27,7 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-app.use('/wondr/', routes);
+app.use('/', routes);
 
 async function startServer() {
     try {
