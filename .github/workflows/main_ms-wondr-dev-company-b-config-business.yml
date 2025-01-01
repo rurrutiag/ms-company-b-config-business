@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up NPM version
+        run: npm install -g npm@10.2.0
+
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
