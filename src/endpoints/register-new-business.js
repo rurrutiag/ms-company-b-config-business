@@ -20,7 +20,6 @@ export default async function postRegisterNewBusiness({
         JSON.stringify(modules)];
     try {
         const result = await queryDb(query, params, false);
-        console.log(result);
         return result;
     } catch (error) {
         throw error;
