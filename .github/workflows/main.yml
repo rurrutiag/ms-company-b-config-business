@@ -71,7 +71,6 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZUREAPPSERVICE_NAME_DEV }}
-          app-name: 'ms-wondr-dev-company-b-config-business'
           slot-name: 'Production'
           package: .
           
