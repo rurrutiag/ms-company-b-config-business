@@ -2,6 +2,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import routes from './routes.js';
 import { createServer } from 'http';
 
@@ -11,23 +13,44 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const corsOrigin = process.env.CORS_ORIGIN || '*';
 
+// Obtener el directorio actual desde import.meta.url
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Middleware para analizar el cuerpo de las solicitudes JSON
 app.use(express.json());
 
 // Middleware para registrar las solicitudes entrantes y habilitar CORS
-app.use((req, res, next) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${req.method} ${req.url}`); // Imprimir la solicitud entrante
-    cors({
-        origin: corsOrigin,
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos permitidos
-        credentials: true, // Habilita el envío de cookies
-    })(req, res, next); // Llama al siguiente middleware
-});
+app.use(cors({
+    origin: corsOrigin,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+}));
 
+// Middleware para analizar el cuerpo de las solicitudes JSON
 app.use(express.json());
 
+// Servir archivos estáticos desde la carpeta 'public'
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Registrar las solicitudes entrantes
+app.use((req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${req.method} ${req.url}`);
+    next(); // Continúa al siguiente middleware
+});
+
+// Si alguien hace una solicitud a la URL base '/', servir el archivo 'index.html'
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
 app.use('/', routes);
+
+// Middleware para manejar errores 404 (páginas no encontradas)
+app.use((req, res, next) => {
+    res.status(404).sendFile(path.join(__dirname, '../public/error.html'));
+});
 
 async function startServer() {
     try {
