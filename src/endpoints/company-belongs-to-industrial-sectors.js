@@ -1,15 +1,16 @@
 import { queryDb } from "../db/db-query.js";
+import { validateArrayWithObjectsStrings } from "./common-tools.js";
 
 /**
- * Inserta un nuevo registro en la tabla `business_industrials_sector`.
+ * Inserts a new record in the `business_industrials_sector` table.
  * 
- * @param {Object} params - Parámetros de entrada.
- * @param {number} params.company_id - ID de la compañía.
- * @param {number} params.industrial_sector_id - ID del sector industrial.
- * @returns {Promise<Object>} - Devuelve el registro insertado.
- * @throws {Error} - Lanza un error si la inserción falla.
+ * @param {Object} params - Input parameters.
+ * @param {number} params.company_id - The ID of the company.
+ * @param {number} params.industrial_sector_id - The ID of the industrial sector.
+ * @returns {Promise<Object>} - The inserted record, containing `id`, `company_id`, and `industrial_id`.
+ * @throws {Error} - Throws an error if the database query fails.
  */
-async function newRow({company_id, industrial_sector_id}){
+async function addRow({company_id, industrial_sector_id}){
     const query = `
         INSERT INTO business_industrials_sector (company_id, industrial_id)
         VALUES ($1, $2)
@@ -21,30 +22,65 @@ async function newRow({company_id, industrial_sector_id}){
 }
 
 /**
- * Asocia una compañía con múltiples sectores industriales.
+ * Deletes a record from the `business_industrials_sector` table.
  * 
- * @param {Object} params - Parámetros de entrada.
- * @param {string} params.company_id - ID de la compañía.
- * @param {Array<string>} params.industrial - Array de IDs de sectores industriales.
- * @returns {Promise<Array>} - Devuelve un array con los resultados de las inserciones.
- * @throws {Error} - Lanza un error si alguna operación falla.
+ * @param {Object} params - Input parameters.
+ * @param {number} params.company_id - The ID of the company.
+ * @param {number} params.industrial_sector_id - The ID of the industrial sector.
+ * @returns {Promise<Object|null>} - The deleted record, or `null` if no record was found.
+ * @throws {Error} - Throws an error if the database query fails.
+ */
+async function removeRow({company_id, industrial_sector_id}) {
+    const query = `
+        DELETE FROM business_industrials_sector
+        WHERE
+            company_id = $1
+            AND
+            industrial_sector_id = $2
+        RETURNING *;
+    `;
+    const params = [company_id, industrial_sector_id];
+    const result = await queryDb(query, params, false);
+    return result;
+}
+
+/**
+ * Associates a company with multiple industrial sectors by adding, updating, or removing records.
+ * 
+ * @param {Object} params - Input parameters.
+ * @param {number} params.company_id - The ID of the company.
+ * @param {Array<Object>} params.industrial - An array of objects representing industrial sector actions.
+ * @param {string} params.industrial[].industrial_sector_id - The ID of the industrial sector.
+ * @param {string} params.industrial[].action - The action to perform: `"add"` to insert, `"remove"` to remove.
+ * @returns {Promise<Array<Object|null>>} - An array containing the results of the operations. Each result corresponds to the output of `newRow` or `deleteRow`, or `null` if the action was unrecognized.
+ * @throws {Error} - Throws an error if input validation fails or if any database operation fails.
  */
 export default async function companyBelongsToIndustrialSectors({
     company_id, industrial
 }) {
-    if (!Array.isArray(industrial) || industrial.length === 0) {
-        throw new Error('El parámetro "industrial" debe ser un array no vacío.');
-    }
-    try {
-        // Mapear cada sector industrial a la función  newRow
-        const promises = industrial.map((item) =>
-            newRow({ company_id, industrial_sector_id: item})
-        );
-        // Ejecutar todas las promesas en paralelo
-        const results = await Promise.all(promises);
-
-        return results;
-    } catch(error) {
-        throw error;
+    const requiredKeys = ["industrial_sector_id", "action"];
+    const validation = validateArrayWithObjectsStrings(industrial, requiredKeys);
+    if (validation.valid){
+        try {
+            // Mapping each industrial sector to trigger functions
+            const promises = industrial.map((item) => {
+                switch (item["action"]) {
+                    case "add":
+                        return addRow({ company_id, industrial_sector_id: item["industrial_sector_id"]})
+                    case "remove":
+                        return removeRow({ company_id, industrial_sector_id: item["industrial_sector_id"] })
+                    default:
+                        console.warn(`Unrecognized action: ${item["action"]}`)
+                        return null;
+                }
+            });
+            // Run all promises in parallel
+            const results = await Promise.all(promises);
+            return results;
+        } catch (error) {
+            throw error;
+        }
+    } else {
+        throw new Error(validation.error);
     }
 }
